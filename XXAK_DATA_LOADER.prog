@@ -1,0 +1,82 @@
+#!/bin/sh
+echo "Starting the script"
+
+# +===========================================================================+
+# User Input for the driving the shell file
+# +===========================================================================+
+
+	    USRNAME_PWD=$1
+		USERID=$2
+	    USERNAME=$3
+	    REQUESTID=$4
+        PIV_CSV_FILE_NAME=$5 
+
+echo "Checking PIV_SUB_MODE"    
+
+
+echo "Operation selected: Import"
+echo "Importing data from .csv file to staging table"
+
+HDR_LOG_FILE_NAME=$PIV_CSV_FILE_NAME.log
+HDR_BAD_FILE_NAME=$PIV_CSV_FILE_NAME.bad
+HDR_CSV_FILE_NAME=$PIV_CSV_FILE_NAME.csv
+REPFILE=$APPLCSF/$APPLLOG/l$REQUESTID.req
+# +============================================+
+# Printing parameters
+# +============================================+
+echo "+----------------------------------------+"
+echo "Files for SQL Loader Process "
+echo " "
+echo "  CSV File :-" $FND_TOP/bin/ItemData/inbound/$HDR_CSV_FILE_NAME
+echo "	Control  :-" $FND_TOP/bin/XXAK_ITEM_CONV_CTL.ctl
+echo "	Log File :-" $FND_TOP/bin/ItemData/inbound/$HDR_LOG_FILE_NAME
+echo "	Bad File :-" $FND_TOP/bin/ItemData/inbound/$HDR_BAD_FILE_NAME
+echo " "
+echo "+----------------------------------------+"
+echo " "
+echo "Executing the SQL Loader Process.."
+echo "+----------------------------------------+"
+
+# +============================================+
+# Check the Control and csv files exists
+# +============================================+
+echo "Checking if Control file and Data file exists"
+echo " "
+if [ -s $FND_TOP/bin/XXAK_ITEM_CONV_CTL.ctl ] ; then
+echo "CONTROL FILE FOUND - XXAK_ITEM_CONV_CTL.ctl exists"
+else
+echo "CONTROL FILE NOT FOUND - XXAK_ITEM_CONV_CTL.ctl does not exist or is zero length"
+exit 0
+fi
+echo " "
+
+if [ -s $FND_TOP/bin/ItemData/inbound/$HDR_CSV_FILE_NAME ] ; then
+echo "DATA FILE FOUND: $HDR_CSV_FILE_NAME exists and is > 0 bytes"
+else
+echo "DATA FILE NOT FOUND: $HDR_CSV_FILE_NAME does not exist or is zero length"
+exit 0
+fi
+
+
+# +============================================+
+# Run SQLLDR
+# +============================================+
+
+echo "Run SQLLDR"
+sqlldr control= $FND_TOP/bin/XXAK_ITEM_CONV_CTL.ctl userid=$USRNAME_PWD data=$FND_TOP/bin/ItemData/inbound/$HDR_CSV_FILE_NAME log= $FND_TOP/bin/ItemData/inbound/$HDR_LOG_FILE_NAME bad= $FND_TOP/bin/ItemData/inbound/$HDR_BAD_FILE_NAME >>$REPFILE
+
+# +=========================================================+
+# Copying Log Details into the concurrent program log file 
+# +=========================================================+
+item_archieve="ITEM_CONV_ARCHIEVE__`date "+%d_%h_%Y_%H_%M_%S"`"
+cat $FND_TOP/bin/ItemData/inbound/$HDR_LOG_FILE_NAME > $REPFILE
+
+mkdir $FND_TOP/bin/ItemData/inbound/$item_archieve
+cp $FND_TOP/bin/ItemData/inbound/$HDR_CSV_FILE_NAME $FND_TOP/bin/ItemData/inbound/$item_archieve
+#rm $FND_TOP/bin/ItemData/inbound/HDR_CSV_FILE_NAME
+
+
+echo "Job ended at: `date`"
+
+echo "Process Complete for Data Load - Exiting"
+exit 0
